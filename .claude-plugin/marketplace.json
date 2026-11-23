@@ -1,0 +1,13 @@
+{
+  "name": "reviewer-memory",
+  "owner": { "name": "Filip Popov", "url": "https://github.com/filipopov" },
+  "metadata": { "description": "reviewer-memory: your reviewers' past comments as a pre-push check" },
+  "plugins": [
+    {
+      "name": "reviewer-memory",
+      "source": "./",
+      "description": "/reviewer-memory:learn mines PR review comments into team rules; /reviewer-memory:check reviews a diff against them; a hook gates git push until the check passes.",
+      "category": "development"
+    }
+  ]
+}

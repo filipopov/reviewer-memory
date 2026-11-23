@@ -1,0 +1,10 @@
+{
+  "name": "reviewer-memory",
+  "version": "0.1.0",
+  "description": "Learns your team's code-review rules from past PR comments, checks new changes against them before you push, and gates `git push` until they pass.",
+  "author": { "name": "Filip Popov", "url": "https://github.com/filipopov" },
+  "homepage": "https://github.com/filipopov/reviewer-memory",
+  "repository": "https://github.com/filipopov/reviewer-memory",
+  "license": "MIT",
+  "keywords": ["code-review", "pull-requests", "conventions", "pre-push", "hooks", "github"]
+}

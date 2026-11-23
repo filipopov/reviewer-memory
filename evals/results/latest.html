@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eval report — reviewer-memory v0.1.0</title>
+</head>
+<body>
+<style>
+:root{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}}
+:root[data-theme="dark"]{--plane:#0d0d0d;--surface:#1a1a19;--ink:#ffffff;--ink-2:#c3c2b7;--ink-3:#898781;--hairline:rgba(255,255,255,.10);--grid:#2c2c2a;--inset:rgba(255,255,255,.05);--accent:#3987e5;--base-fill:#898781;--delta-good:#0ca30c;--good:#0ca30c;--warning:#fab219;--critical:#e06c6c;color-scheme:dark}
+:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:880px;margin:0 auto;padding:40px 24px 64px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+header h1{margin:2px 0 0;font-size:24px;font-weight:600;line-height:1.25;text-wrap:balance}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;color:var(--ink-2);font-size:13px}
+.meta .num{font-variant-numeric:tabular-nums lining-nums}
+.banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;
+  border:1px solid var(--hairline);background:var(--surface);font-size:13px}
+.banner .chip-warn{color:var(--warning);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:4px}
+.tile .label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.tile .value{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;line-height:1.1}
+.tile.hero .value{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:48px}
+.tile .sub{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.tile .value.delta-pos{color:var(--delta-good)}
+.tile .value.delta-neg{color:var(--critical)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end}
+.toolbar button{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--hairline);border-radius:6px;padding:4px 10px;cursor:pointer}
+.toolbar button:hover{color:var(--ink)}
+.toolbar button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.case{background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:10px}
+.case-regressed{border-left:3px solid var(--critical)}
+.verdict{margin:6px 0 0;font-size:15px}
+.verdict .delta{font-size:15px}
+.flag{font-size:11px;font-weight:600;color:var(--warning);white-space:nowrap}
+.star{color:var(--warning);font-size:.45em;vertical-align:super;line-height:0;cursor:help}
+.legend summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.legend-list{margin:8px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink-2)}
+.case-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.case-head h2{margin:0;font-size:16px;font-weight:600}
+.case-head .spacer{flex:1}
+.case-score{font-size:15px;font-weight:600}
+.mono{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.muted{color:var(--ink-3);font-size:12px}
+.meter{display:inline-block;position:relative;width:120px;height:6px;border-radius:4px;background:var(--grid);
+  vertical-align:middle}
+.meter>span{display:block;height:100%;border-radius:4px;max-width:100%}
+.meter .tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink-3);border-radius:1px}
+.m-accent>span{background:var(--accent)}
+.m-base>span{background:var(--base-fill)}
+.delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.delta-pos{color:var(--delta-good)}
+.delta-neg{color:var(--critical)}
+.delta-zero{color:var(--ink-3)}
+details.section{border-top:1px solid var(--grid);padding-top:10px}
+details.section>summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);list-style-position:outside;margin-left:2px}
+details.section>summary:hover{color:var(--ink)}
+details.section[open]>summary{margin-bottom:8px}
+.md{display:flex;flex-direction:column;gap:8px;background:var(--inset);border-radius:8px;
+  padding:12px 14px;overflow-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{margin:4px 0 0;font-size:1em;font-weight:600;line-height:1.3}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre,.md hr{margin:0}
+.md ul,.md ol{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.md blockquote{border-left:2px solid var(--hairline);padding-left:10px;color:var(--ink-2)}
+.md :not(pre)>code{background:var(--inset);padding:1px 4px;border-radius:4px;
+  font:.92em "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre{background:var(--inset);border:1px solid var(--hairline);padding:10px 12px;border-radius:6px;
+  overflow-x:auto;font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.md pre code{background:none;padding:0;font:inherit}
+.md table{width:100%;border-collapse:collapse}
+.md th,.md td{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--grid)}
+.md th{font-weight:600;color:var(--ink-2)}
+.md a{color:var(--accent);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.grader-def{display:flex;flex-direction:column;gap:6px;padding:8px 0}
+.grader-def+.grader-def{border-top:1px solid var(--grid)}
+.grader-def-head{display:flex;align-items:baseline;gap:8px}
+.grader-name{font:13px "SF Mono",ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.badge{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);
+  border:1px solid var(--hairline);border-radius:999px;padding:1px 8px}
+.config{display:flex;flex-direction:column;gap:2px;background:var(--inset);border-radius:8px;padding:10px 14px}
+.config code{font:12px "SF Mono",ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.arm{display:flex;flex-direction:column;gap:8px;padding:6px 0}
+.arm+.arm{border-top:1px dashed var(--grid);margin-top:4px;padding-top:12px}
+.arm-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.arm-label{font-size:13px;font-weight:600}
+.run{border:1px solid var(--grid);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.run-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.run-title{font-size:12px;font-weight:600;color:var(--ink-2)}
+.run-error .explanation{color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2)}
+.graders{display:flex;flex-direction:column;gap:4px}
+details.grader{border-radius:6px}
+details.grader>summary{cursor:pointer;display:flex;align-items:baseline;gap:8px;padding:3px 4px;
+  border-radius:6px;list-style:none}
+details.grader>summary::-webkit-details-marker{display:none}
+details.grader>summary::before{content:'▸';font-size:10px;color:var(--ink-3);flex:none;
+  transition:transform .12s ease}
+details.grader[open]>summary::before{transform:rotate(90deg)}
+details.grader>summary:hover{background:var(--inset)}
+details.grader>summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grader-body{padding:6px 8px 8px 24px;display:flex;flex-direction:column;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.chip-pass{color:var(--good);border:1px solid currentColor}
+.chip-fail{color:var(--critical);border:1px solid currentColor}
+.chip.chip-warn{color:var(--warning);border:1px solid currentColor}
+.explanation{margin:0;font-size:13px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:break-word}
+.kv{display:flex;gap:8px;font-size:12px;color:var(--ink-3)}
+.votes{font-variant-numeric:tabular-nums;letter-spacing:.1em}
+pre.evidence{margin:0;background:var(--inset);border:1px solid var(--hairline);border-radius:6px;
+  padding:8px 10px;overflow-x:auto;max-height:320px;
+  font:12px/1.5 "SF Mono",ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:break-word}
+footer{color:var(--ink-3);font-size:12px;text-align:center;padding-top:8px}
+@media (prefers-reduced-motion:no-preference){
+  details.grader>summary,.toolbar button{transition:background .12s ease,color .12s ease}
+}
+@media (prefers-reduced-motion:reduce){
+  details.grader>summary::before{transition:none}
+}
+@media print{
+  :root,:root[data-theme="dark"],:root[data-theme="light"]{--plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink-2:#52514e;--ink-3:#6b6a64;--hairline:rgba(11,11,11,.10);--grid:#e1e0d9;--inset:rgba(11,11,11,.04);--accent:#2a78d6;--base-fill:#6b6a64;--delta-good:#006300;--good:#067d06;--warning:#8a6100;--critical:#d03b3b;color-scheme:light}
+  body{background:#fff}
+  .toolbar{display:none}
+  .case,.run,.grader-def{break-inside:avoid}
+  pre.evidence{max-height:none}
+}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">Plugin eval report</div>
+<h1>reviewer-memory v0.1.0</h1>
+<p class="verdict">Plugin effect: <span class="delta delta-zero">· 0.0 pts</span> vs baseline — improved 0 · flat 1 · regressed 0 of 1 case.</p>
+<div class="meta">
+<span class="mono">.</span>
+<span>Claude Code v2.1.331</span>
+<span class="num">2026-11-23 22:59 UTC</span>
+<span class="num">1m 6s</span>
+<span class="num">$1.57</span>
+<span class="num">6 runs</span>
+<span class="num">3 in flight</span>
+
+
+<span>judge sonnet</span>
+<span class="num">threshold 0%</span>
+
+</div>
+</header>
+
+<section class="tiles">
+<div class="tile hero"><span class="label">Suite score · with plugin</span><span class="value">100%</span><span class="sub">mean of per-case scores</span></div>
+<div class="tile"><span class="label">Ablation Δ</span><span class="value num delta-zero">0.0</span><span class="sub">score points vs baseline, 1 of 1 case</span></div>
+<div class="tile"><span class="label">Baseline score</span><span class="value num">100%</span><span class="sub">without the plugin</span></div>
+<div class="tile"><span class="label">Cases</span><span class="value num">1</span><span class="sub">1 of 1 ≥ 0% threshold</span></div>
+<div class="tile"><span class="label">Perfect runs</span><span class="value num">100%</span><span class="sub">runs where every grader passed</span></div>
+</section>
+<details class="section legend">
+<summary>How to read this report</summary>
+<ul class="legend-list">
+<li>A run's score is the weighted fraction of its graders that passed; a "perfect" run passed every grader.</li>
+<li>A case's score is the mean of its runs; a case passes when its score is at or above the 0% threshold (the tick on each case bar).</li>
+<li>The suite score is the mean of the per-case scores.</li>
+<li>Judge votes are independent samples of the LLM judge; the majority decides pass or fail.</li>
+<li>"With plugin" and "Baseline" runs are identical except for the plugin being loaded; Δ is the with-plugin score minus the baseline score.</li>
+
+</ul>
+</details>
+<div class="toolbar"><button type="button" data-act="expand">Expand all</button><button type="button" data-act="collapse">Collapse all</button></div>
+<article class="case" id="case-1">
+<div class="case-head">
+<h2>pre-push-check</h2>
+<span class="muted mono">evals/pre-push-check</span>
+<span class="spacer"></span>
+
+<span class="delta delta-zero">· 0.0 pts</span>
+<span class="muted">with plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span><i class="tick" style="left:0.0%"></i></span>
+<span class="num case-score">100%</span>
+</div>
+
+<details class="section" open>
+<summary>Results</summary>
+<section class="arm">
+<div class="arm-head">
+<span class="arm-label">With plugin</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">12 turns · $0.28 · 22:59:23 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see your actual changes. Git fails inside this sandbox (it can&apos;t write its cache to the system temp folder), so the team&apos;s diff script also failed, and Bash was then blocked entirely. Instead I read the four files in `src/main/` and checked them against the team&apos;s `REVIEW_RULES.md`. That means I can&apos;t confirm which of these lines your commit &quot;Add weekend fees&quot; touched. The fee code almost certainly comes from it; the logging line might be older.
+
+## What to fix before pushing
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check uses `Instant.now()` directly, so the weekend fee can&apos;t be tested at a fixed date. | Pass a `Clock` into `FeeCalculator` through its constructor and use `Instant.now(clock)`. `PaymentService` already has a `clock` to hand over. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,17,19` | The rate, the fee calculation and the return value are all `double`, and `amount.doubleValue()` turns the amount into a `double` too. | Make `RATE` `new BigDecimal(&quot;0.002&quot;)`, use `amount.multiply(RATE)`, double it with `.multiply(BigDecimal.valueOf(2))`, and return `BigDecimal` with `.setScale(2, RoundingMode.HALF_EVEN)` (or whatever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` builds a `BigDecimal` from a calculated `double`. | Once `feeFor` returns `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here. Line 28 already logs `payment.id()` after creation, so drop line 24 or log only non-personal fields. |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`)  R04 ✓ (the controller only calls the service)
+
+Because there are rule violations marked `must`, I didn&apos;t record a pass, so the reviewer-memory push check will still block the push. I didn&apos;t edit anything.
+
+To check against the real diff, run `python3 &quot;/Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py&quot;` in your own terminal and paste the output here. Or tell me to fix these and I&apos;ll run the check again afterwards.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see your actual changes. Git fails inside this sandbox (it can&apos;t write its cache to the system temp folder), so the team&apos;s diff script also failed, and Bash was then blocked entirely. Instead I read the four files in `src/main/` and checked them against the team&apos;s `REVIEW_RULES.md`. That means I can&apos;t confirm which of these lines your commit &quot;Add weekend fees&quot; touched. The fee code almost certainly comes from it; the logging line might be older.
+
+## What to fix before pushing
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check uses `Instant.now()` directly, so the weekend fee can&apos;t be tested at a fixed date. | Pass a `Clock` into `FeeCalculator` through its constructor and use `Instant.now(clock)`. `PaymentService` already has a `clock` to hand over. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,17,19` | The rate, the fee calculation and the return value are all `double`, and `amount.doubleValue()` turns the amount into a `double` too. | Make `RATE` `new BigDecimal(&quot;0.002&quot;)`, use `amount.multiply(RATE)`, double it with `.multiply(BigDecimal.valueOf(2))`, and return `BigDecimal` with `.setScale(2, RoundingMode.HALF_EVEN)` (or whatever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` builds a `BigDecimal` from a calculated `double`. | Once `feeFor` returns `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here. Line 28 already logs `payment.id()` after creation, so drop line 24 or log only non-personal fields. |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`)  R04 ✓ (the controller only calls the service)
+
+Because there are rule violations marked `must`, I didn&apos;t record a pass, so the reviewer-memory push check will still block the push. I didn&apos;t edit anything.
+
+To check against the real diff, run `python3 &quot;/Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py&quot;` in your own terminal and paste the output here. Or tell me to fix these and I&apos;ll run the check again afterwards.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see your actual changes. Git fails inside this sandbox (it can&apos;t write its cache to the system temp folder), so the team&apos;s diff script also failed, and Bash was then blocked entirely. Instead I read the four files in `src/main/` and checked them against the team&apos;s `REVIEW_RULES.md`. That means I can&apos;t confirm which of these lines your commit &quot;Add weekend fees&quot; touched. The fee code almost certainly comes from it; the logging line might be older.
+
+## What to fix before pushing
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check uses `Instant.now()` directly, so the weekend fee can&apos;t be tested at a fixed date. | Pass a `Clock` into `FeeCalculator` through its constructor and use `Instant.now(clock)`. `PaymentService` already has a `clock` to hand over. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,17,19` | The rate, the fee calculation and the return value are all `double`, and `amount.doubleValue()` turns the amount into a `double` too. | Make `RATE` `new BigDecimal(&quot;0.002&quot;)`, use `amount.multiply(RATE)`, double it with `.multiply(BigDecimal.valueOf(2))`, and return `BigDecimal` with `.setScale(2, RoundingMode.HALF_EVEN)` (or whatever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` builds a `BigDecimal` from a calculated `double`. | Once `feeFor` returns `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here. Line 28 already logs `payment.id()` after creation, so drop line 24 or log only non-personal fields. |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`)  R04 ✓ (the controller only calls the service)
+
+Because there are rule violations marked `must`, I didn&apos;t record a pass, so the reviewer-memory push check will still block the push. I didn&apos;t edit anything.
+
+To check against the real diff, run `python3 &quot;/Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py&quot;` in your own terminal and paste the output here. Or tell me to fix these and I&apos;ll run the check again afterwards.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see your actual changes. Git fails inside this sandbox (it can&apos;t write its cache to the system temp folder), so the team&apos;s diff script also failed, and Bash was then blocked entirely. Instead I read the four files in `src/main/` and checked them against the team&apos;s `REVIEW_RULES.md`. That means I can&apos;t confirm which of these lines your commit &quot;Add weekend fees&quot; touched. The fee code almost certainly comes from it; the logging line might be older.
+
+## What to fix before pushing
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check uses `Instant.now()` directly, so the weekend fee can&apos;t be tested at a fixed date. | Pass a `Clock` into `FeeCalculator` through its constructor and use `Instant.now(clock)`. `PaymentService` already has a `clock` to hand over. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,17,19` | The rate, the fee calculation and the return value are all `double`, and `amount.doubleValue()` turns the amount into a `double` too. | Make `RATE` `new BigDecimal(&quot;0.002&quot;)`, use `amount.multiply(RATE)`, double it with `.multiply(BigDecimal.valueOf(2))`, and return `BigDecimal` with `.setScale(2, RoundingMode.HALF_EVEN)` (or whatever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` builds a `BigDecimal` from a calculated `double`. | Once `feeFor` returns `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here. Line 28 already logs `payment.id()` after creation, so drop line 24 or log only non-personal fields. |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`)  R04 ✓ (the controller only calls the service)
+
+Because there are rule violations marked `must`, I didn&apos;t record a pass, so the reviewer-memory push check will still block the push. I didn&apos;t edit anything.
+
+To check against the real diff, run `python3 &quot;/Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py&quot;` in your own terminal and paste the output here. Or tell me to fix these and I&apos;ll run the check again afterwards.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-rules</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">matched reviewer-memory:check|REVIEW_RULES</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">12 turns · $0.28 · 22:59:23 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Don&apos;t push yet: two changes break the team&apos;s `must` rules and need fixing first, plus one more I can&apos;t place.
+
+I couldn&apos;t see your actual diff. `git` won&apos;t run in this sandbox, and the diff script failed with &quot;Not a git repository&quot;. So I read the four source files in full and checked them against `REVIEW_RULES.md`. The findings are real, but I can&apos;t confirm which ones your &quot;Add weekend fees&quot; commit introduced. The weekend logic in `FeeCalculator` is almost certainly yours.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | `Instant.now()` decides whether it&apos;s the weekend, so the weekend fee can&apos;t be tested at a fixed time. | Give `FeeCalculator` a `Clock` in its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. `PaymentService` already has a `Clock`, so pass it in at line 16. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13-14,19` | The rate, the fee and the return value are all `double`, and `amount.doubleValue()` loses precision. | Use `BigDecimal RATE = new BigDecimal(&quot;0.002&quot;)` and return `BigDecimal`. Compute `amount.multiply(RATE)`, multiply by 2 on weekends, then `.setScale(2, RoundingMode.HALF_EVEN)` (or whichever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(double)` is called on a computed fee. | Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`, so the debtor&apos;s name and both IBANs end up in the logs. | Log no request data here, and keep the log line after `save` that records `payment.id()`. *This line may be older than your branch; check with `git diff main...HEAD`.* |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`) · R04 ✓ (`PaymentController` only calls the service)
+
+I didn&apos;t record a pass, because the gate only allows one when there are no `must` findings. I haven&apos;t edited anything. Once you&apos;ve fixed these, I can run the check again; it will be more precise if `git` is available (for example outside the sandbox). Or I can make the fixes if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Don&apos;t push yet: two changes break the team&apos;s `must` rules and need fixing first, plus one more I can&apos;t place.
+
+I couldn&apos;t see your actual diff. `git` won&apos;t run in this sandbox, and the diff script failed with &quot;Not a git repository&quot;. So I read the four source files in full and checked them against `REVIEW_RULES.md`. The findings are real, but I can&apos;t confirm which ones your &quot;Add weekend fees&quot; commit introduced. The weekend logic in `FeeCalculator` is almost certainly yours.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | `Instant.now()` decides whether it&apos;s the weekend, so the weekend fee can&apos;t be tested at a fixed time. | Give `FeeCalculator` a `Clock` in its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. `PaymentService` already has a `Clock`, so pass it in at line 16. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13-14,19` | The rate, the fee and the return value are all `double`, and `amount.doubleValue()` loses precision. | Use `BigDecimal RATE = new BigDecimal(&quot;0.002&quot;)` and return `BigDecimal`. Compute `amount.multiply(RATE)`, multiply by 2 on weekends, then `.setScale(2, RoundingMode.HALF_EVEN)` (or whichever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(double)` is called on a computed fee. | Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`, so the debtor&apos;s name and both IBANs end up in the logs. | Log no request data here, and keep the log line after `save` that records `payment.id()`. *This line may be older than your branch; check with `git diff main...HEAD`.* |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`) · R04 ✓ (`PaymentController` only calls the service)
+
+I didn&apos;t record a pass, because the gate only allows one when there are no `must` findings. I haven&apos;t edited anything. Once you&apos;ve fixed these, I can run the check again; it will be more precise if `git` is available (for example outside the sandbox). Or I can make the fixes if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Don&apos;t push yet: two changes break the team&apos;s `must` rules and need fixing first, plus one more I can&apos;t place.
+
+I couldn&apos;t see your actual diff. `git` won&apos;t run in this sandbox, and the diff script failed with &quot;Not a git repository&quot;. So I read the four source files in full and checked them against `REVIEW_RULES.md`. The findings are real, but I can&apos;t confirm which ones your &quot;Add weekend fees&quot; commit introduced. The weekend logic in `FeeCalculator` is almost certainly yours.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | `Instant.now()` decides whether it&apos;s the weekend, so the weekend fee can&apos;t be tested at a fixed time. | Give `FeeCalculator` a `Clock` in its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. `PaymentService` already has a `Clock`, so pass it in at line 16. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13-14,19` | The rate, the fee and the return value are all `double`, and `amount.doubleValue()` loses precision. | Use `BigDecimal RATE = new BigDecimal(&quot;0.002&quot;)` and return `BigDecimal`. Compute `amount.multiply(RATE)`, multiply by 2 on weekends, then `.setScale(2, RoundingMode.HALF_EVEN)` (or whichever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(double)` is called on a computed fee. | Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`, so the debtor&apos;s name and both IBANs end up in the logs. | Log no request data here, and keep the log line after `save` that records `payment.id()`. *This line may be older than your branch; check with `git diff main...HEAD`.* |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`) · R04 ✓ (`PaymentController` only calls the service)
+
+I didn&apos;t record a pass, because the gate only allows one when there are no `must` findings. I haven&apos;t edited anything. Once you&apos;ve fixed these, I can run the check again; it will be more precise if `git` is available (for example outside the sandbox). Or I can make the fixes if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">Don&apos;t push yet: two changes break the team&apos;s `must` rules and need fixing first, plus one more I can&apos;t place.
+
+I couldn&apos;t see your actual diff. `git` won&apos;t run in this sandbox, and the diff script failed with &quot;Not a git repository&quot;. So I read the four source files in full and checked them against `REVIEW_RULES.md`. The findings are real, but I can&apos;t confirm which ones your &quot;Add weekend fees&quot; commit introduced. The weekend logic in `FeeCalculator` is almost certainly yours.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | `Instant.now()` decides whether it&apos;s the weekend, so the weekend fee can&apos;t be tested at a fixed time. | Give `FeeCalculator` a `Clock` in its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. `PaymentService` already has a `Clock`, so pass it in at line 16. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13-14,19` | The rate, the fee and the return value are all `double`, and `amount.doubleValue()` loses precision. | Use `BigDecimal RATE = new BigDecimal(&quot;0.002&quot;)` and return `BigDecimal`. Compute `amount.multiply(RATE)`, multiply by 2 on weekends, then `.setScale(2, RoundingMode.HALF_EVEN)` (or whichever rounding mode the team uses). |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(double)` is called on a computed fee. | Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`, so the debtor&apos;s name and both IBANs end up in the logs. | Log no request data here, and keep the log line after `save` that records `payment.id()`. *This line may be older than your branch; check with `git diff main...HEAD`.* |
+
+R01 ✓ in `PaymentService` (it uses `Instant.now(clock)`) · R04 ✓ (`PaymentController` only calls the service)
+
+I didn&apos;t record a pass, because the gate only allows one when there are no `must` findings. I haven&apos;t edited anything. Once you&apos;ve fixed these, I can run the check again; it will be more precise if `git` is available (for example outside the sandbox). Or I can make the fixes if you&apos;d like.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-rules</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">matched reviewer-memory:check|REVIEW_RULES</p>
+
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-accent" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">12 turns · $0.26 · 22:59:23 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">There are three `must` issues to fix before you push, and the push gate is not stamped.
+
+**I couldn&apos;t get the diff.** Inside this sandbox `git` fails because it can&apos;t create its cache file in the system temp folder (`xcrun_db… Operation not permitted`). The `diff.py` script failed for the same reason, and I wasn&apos;t allowed to look for another git binary. So I checked all four files in `src/main` against `REVIEW_RULES.md`. That means I can&apos;t tell which lines your &quot;Add weekend fees&quot; commit added and which were already on `main`. The R01 and R02 findings in `FeeCalculator` are almost certainly yours. R03 may be older code.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check calls `Instant.now()` directly, so you can&apos;t test weekend fees at a fixed time. | Inject a `Clock` into `FeeCalculator` (constructor) and use `Instant.now(clock)` / `LocalDate.now(clock)`. `PaymentService` already has a `Clock` it can pass in at line 16, instead of `new FeeCalculator()`. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,19` | `RATE` is a `double`, the fee is worked out with `amount.doubleValue() * RATE`, and `feeFor` returns a `double`. | Use `new BigDecimal(&quot;0.002&quot;)`, return a `BigDecimal`, and do `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` on weekends), then `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding the team uses. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` turns a calculated `double` back into a `BigDecimal`. | Once `feeFor` returns a `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here, or log only an identifier. The existing line 28 already logs `payment.id()` after the payment is saved. |
+
+R04 ✓ (`PaymentController` only calls `PaymentService`)
+
+To check the exact diff yourself, run `python3 /Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py` in your own terminal. I can fix these issues and run the check again if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">There are three `must` issues to fix before you push, and the push gate is not stamped.
+
+**I couldn&apos;t get the diff.** Inside this sandbox `git` fails because it can&apos;t create its cache file in the system temp folder (`xcrun_db… Operation not permitted`). The `diff.py` script failed for the same reason, and I wasn&apos;t allowed to look for another git binary. So I checked all four files in `src/main` against `REVIEW_RULES.md`. That means I can&apos;t tell which lines your &quot;Add weekend fees&quot; commit added and which were already on `main`. The R01 and R02 findings in `FeeCalculator` are almost certainly yours. R03 may be older code.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check calls `Instant.now()` directly, so you can&apos;t test weekend fees at a fixed time. | Inject a `Clock` into `FeeCalculator` (constructor) and use `Instant.now(clock)` / `LocalDate.now(clock)`. `PaymentService` already has a `Clock` it can pass in at line 16, instead of `new FeeCalculator()`. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,19` | `RATE` is a `double`, the fee is worked out with `amount.doubleValue() * RATE`, and `feeFor` returns a `double`. | Use `new BigDecimal(&quot;0.002&quot;)`, return a `BigDecimal`, and do `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` on weekends), then `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding the team uses. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` turns a calculated `double` back into a `BigDecimal`. | Once `feeFor` returns a `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here, or log only an identifier. The existing line 28 already logs `payment.id()` after the payment is saved. |
+
+R04 ✓ (`PaymentController` only calls `PaymentService`)
+
+To check the exact diff yourself, run `python3 /Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py` in your own terminal. I can fix these issues and run the check again if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">There are three `must` issues to fix before you push, and the push gate is not stamped.
+
+**I couldn&apos;t get the diff.** Inside this sandbox `git` fails because it can&apos;t create its cache file in the system temp folder (`xcrun_db… Operation not permitted`). The `diff.py` script failed for the same reason, and I wasn&apos;t allowed to look for another git binary. So I checked all four files in `src/main` against `REVIEW_RULES.md`. That means I can&apos;t tell which lines your &quot;Add weekend fees&quot; commit added and which were already on `main`. The R01 and R02 findings in `FeeCalculator` are almost certainly yours. R03 may be older code.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check calls `Instant.now()` directly, so you can&apos;t test weekend fees at a fixed time. | Inject a `Clock` into `FeeCalculator` (constructor) and use `Instant.now(clock)` / `LocalDate.now(clock)`. `PaymentService` already has a `Clock` it can pass in at line 16, instead of `new FeeCalculator()`. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,19` | `RATE` is a `double`, the fee is worked out with `amount.doubleValue() * RATE`, and `feeFor` returns a `double`. | Use `new BigDecimal(&quot;0.002&quot;)`, return a `BigDecimal`, and do `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` on weekends), then `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding the team uses. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` turns a calculated `double` back into a `BigDecimal`. | Once `feeFor` returns a `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here, or log only an identifier. The existing line 28 already logs `payment.id()` after the payment is saved. |
+
+R04 ✓ (`PaymentController` only calls `PaymentService`)
+
+To check the exact diff yourself, run `python3 /Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py` in your own terminal. I can fix these issues and run the check again if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">There are three `must` issues to fix before you push, and the push gate is not stamped.
+
+**I couldn&apos;t get the diff.** Inside this sandbox `git` fails because it can&apos;t create its cache file in the system temp folder (`xcrun_db… Operation not permitted`). The `diff.py` script failed for the same reason, and I wasn&apos;t allowed to look for another git binary. So I checked all four files in `src/main` against `REVIEW_RULES.md`. That means I can&apos;t tell which lines your &quot;Add weekend fees&quot; commit added and which were already on `main`. The R01 and R02 findings in `FeeCalculator` are almost certainly yours. R03 may be older code.
+
+| Rule | Severity | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| R01 · Inject the clock | must | `src/main/java/demo/FeeCalculator.java:15` | The weekend check calls `Instant.now()` directly, so you can&apos;t test weekend fees at a fixed time. | Inject a `Clock` into `FeeCalculator` (constructor) and use `Instant.now(clock)` / `LocalDate.now(clock)`. `PaymentService` already has a `Clock` it can pass in at line 16, instead of `new FeeCalculator()`. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/FeeCalculator.java:11,13,14,19` | `RATE` is a `double`, the fee is worked out with `amount.doubleValue() * RATE`, and `feeFor` returns a `double`. | Use `new BigDecimal(&quot;0.002&quot;)`, return a `BigDecimal`, and do `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` on weekends), then `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding the team uses. |
+| R02 · Money is BigDecimal | must | `src/main/java/demo/PaymentService.java:25` | `BigDecimal.valueOf(fees.feeFor(...))` turns a calculated `double` back into a `BigDecimal`. | Once `feeFor` returns a `BigDecimal`, use `request.amount().add(fees.feeFor(request.amount()))`. |
+| R03 · Log ids, not customer data | must | `src/main/java/demo/PaymentService.java:24` | This logs the whole `PaymentRequest`. Its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. | Log no customer data here, or log only an identifier. The existing line 28 already logs `payment.id()` after the payment is saved. |
+
+R04 ✓ (`PaymentController` only calls `PaymentService`)
+
+To check the exact diff yourself, run `python3 /Users/fpopov/IdeaProjects/reviewer-memory/scripts/diff.py` in your own terminal. I can fix these issues and run the check again if you want.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">used-rules</span>  <span class="badge">plugin-fired indicator</span></summary>
+<div class="grader-body">
+<p class="explanation">matched reviewer-memory:check|REVIEW_RULES</p>
+
+</div>
+</details></div>
+</div>
+</section><section class="arm">
+<div class="arm-head">
+<span class="arm-label">Baseline (no plugin)</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">100% of runs perfect</span>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 1</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">10 turns · $0.26 · 22:59:55 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I found three problems that break your team&apos;s `must` rules in `REVIEW_RULES.md`. Fix them before you push.
+
+**I couldn&apos;t see the actual diff.** The sandbox blocked `git`, so I reviewed the files as they are now. The branch has one commit, &quot;Add weekend fees&quot;. `FeeCalculator` is clearly part of it, but I can&apos;t tell whether the logging problem (#3) is new or was already on `main`. It&apos;s worth fixing either way.
+
+### Must fix
+
+**1. R01: the current time comes from the system, not an injected clock** (`src/main/java/demo/FeeCalculator.java:15`)
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This makes the weekend doubling impossible to test at a fixed time, which is exactly what the rule is meant to prevent. `PaymentService` already has a `Clock` but builds its own `new FeeCalculator()` (`PaymentService.java:16`). Inject the `Clock` into `FeeCalculator`, or pass in the payment&apos;s timestamp, and use `Instant.now(clock)`.
+
+**2. R02: fees are calculated with `double`** (`FeeCalculator.java:11-19`, `PaymentService.java:25`)
+- `private static final double RATE = 0.002;`
+- `public double feeFor(...)` returns a `double`
+- `amount.doubleValue() * RATE` turns the `BigDecimal` into floating point, which loses precision
+- `BigDecimal.valueOf(fees.feeFor(...))` converts a computed double back to `BigDecimal`. The rule names this pattern specifically.
+
+Use `new BigDecimal(&quot;0.002&quot;)` for the rate and return `BigDecimal` from `feeFor`. Multiply in `BigDecimal` and call `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode your team uses.
+
+**3. R03: the whole request is logged, including personal data** (`PaymentService.java:24`)
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. Log an identifier instead, or nothing. The second log line (`payment.id()`) is fine.
+
+### Worth checking
+- **Time zone:** &quot;weekend&quot; is worked out in UTC. If customers or the business are in a different time zone, payments made late Friday or Sunday night local time will get the wrong fee. Confirm that UTC is what you want.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests with a fixed `Clock` for a weekday, Saturday and Sunday, plus a rounding case.
+
+R04 (controllers call services, not repositories) is fine: `PaymentController` only uses `PaymentService`.
+
+I haven&apos;t edited anything. If you want me to check against the exact diff, run `git diff main...feature/fees` and paste the output, or allow `git` in the sandbox.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I found three problems that break your team&apos;s `must` rules in `REVIEW_RULES.md`. Fix them before you push.
+
+**I couldn&apos;t see the actual diff.** The sandbox blocked `git`, so I reviewed the files as they are now. The branch has one commit, &quot;Add weekend fees&quot;. `FeeCalculator` is clearly part of it, but I can&apos;t tell whether the logging problem (#3) is new or was already on `main`. It&apos;s worth fixing either way.
+
+### Must fix
+
+**1. R01: the current time comes from the system, not an injected clock** (`src/main/java/demo/FeeCalculator.java:15`)
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This makes the weekend doubling impossible to test at a fixed time, which is exactly what the rule is meant to prevent. `PaymentService` already has a `Clock` but builds its own `new FeeCalculator()` (`PaymentService.java:16`). Inject the `Clock` into `FeeCalculator`, or pass in the payment&apos;s timestamp, and use `Instant.now(clock)`.
+
+**2. R02: fees are calculated with `double`** (`FeeCalculator.java:11-19`, `PaymentService.java:25`)
+- `private static final double RATE = 0.002;`
+- `public double feeFor(...)` returns a `double`
+- `amount.doubleValue() * RATE` turns the `BigDecimal` into floating point, which loses precision
+- `BigDecimal.valueOf(fees.feeFor(...))` converts a computed double back to `BigDecimal`. The rule names this pattern specifically.
+
+Use `new BigDecimal(&quot;0.002&quot;)` for the rate and return `BigDecimal` from `feeFor`. Multiply in `BigDecimal` and call `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode your team uses.
+
+**3. R03: the whole request is logged, including personal data** (`PaymentService.java:24`)
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. Log an identifier instead, or nothing. The second log line (`payment.id()`) is fine.
+
+### Worth checking
+- **Time zone:** &quot;weekend&quot; is worked out in UTC. If customers or the business are in a different time zone, payments made late Friday or Sunday night local time will get the wrong fee. Confirm that UTC is what you want.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests with a fixed `Clock` for a weekday, Saturday and Sunday, plus a rounding case.
+
+R04 (controllers call services, not repositories) is fine: `PaymentController` only uses `PaymentService`.
+
+I haven&apos;t edited anything. If you want me to check against the exact diff, run `git diff main...feature/fees` and paste the output, or allow `git` in the sandbox.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I found three problems that break your team&apos;s `must` rules in `REVIEW_RULES.md`. Fix them before you push.
+
+**I couldn&apos;t see the actual diff.** The sandbox blocked `git`, so I reviewed the files as they are now. The branch has one commit, &quot;Add weekend fees&quot;. `FeeCalculator` is clearly part of it, but I can&apos;t tell whether the logging problem (#3) is new or was already on `main`. It&apos;s worth fixing either way.
+
+### Must fix
+
+**1. R01: the current time comes from the system, not an injected clock** (`src/main/java/demo/FeeCalculator.java:15`)
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This makes the weekend doubling impossible to test at a fixed time, which is exactly what the rule is meant to prevent. `PaymentService` already has a `Clock` but builds its own `new FeeCalculator()` (`PaymentService.java:16`). Inject the `Clock` into `FeeCalculator`, or pass in the payment&apos;s timestamp, and use `Instant.now(clock)`.
+
+**2. R02: fees are calculated with `double`** (`FeeCalculator.java:11-19`, `PaymentService.java:25`)
+- `private static final double RATE = 0.002;`
+- `public double feeFor(...)` returns a `double`
+- `amount.doubleValue() * RATE` turns the `BigDecimal` into floating point, which loses precision
+- `BigDecimal.valueOf(fees.feeFor(...))` converts a computed double back to `BigDecimal`. The rule names this pattern specifically.
+
+Use `new BigDecimal(&quot;0.002&quot;)` for the rate and return `BigDecimal` from `feeFor`. Multiply in `BigDecimal` and call `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode your team uses.
+
+**3. R03: the whole request is logged, including personal data** (`PaymentService.java:24`)
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. Log an identifier instead, or nothing. The second log line (`payment.id()`) is fine.
+
+### Worth checking
+- **Time zone:** &quot;weekend&quot; is worked out in UTC. If customers or the business are in a different time zone, payments made late Friday or Sunday night local time will get the wrong fee. Confirm that UTC is what you want.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests with a fixed `Clock` for a weekday, Saturday and Sunday, plus a rounding case.
+
+R04 (controllers call services, not repositories) is fine: `PaymentController` only uses `PaymentService`.
+
+I haven&apos;t edited anything. If you want me to check against the exact diff, run `git diff main...feature/fees` and paste the output, or allow `git` in the sandbox.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I found three problems that break your team&apos;s `must` rules in `REVIEW_RULES.md`. Fix them before you push.
+
+**I couldn&apos;t see the actual diff.** The sandbox blocked `git`, so I reviewed the files as they are now. The branch has one commit, &quot;Add weekend fees&quot;. `FeeCalculator` is clearly part of it, but I can&apos;t tell whether the logging problem (#3) is new or was already on `main`. It&apos;s worth fixing either way.
+
+### Must fix
+
+**1. R01: the current time comes from the system, not an injected clock** (`src/main/java/demo/FeeCalculator.java:15`)
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This makes the weekend doubling impossible to test at a fixed time, which is exactly what the rule is meant to prevent. `PaymentService` already has a `Clock` but builds its own `new FeeCalculator()` (`PaymentService.java:16`). Inject the `Clock` into `FeeCalculator`, or pass in the payment&apos;s timestamp, and use `Instant.now(clock)`.
+
+**2. R02: fees are calculated with `double`** (`FeeCalculator.java:11-19`, `PaymentService.java:25`)
+- `private static final double RATE = 0.002;`
+- `public double feeFor(...)` returns a `double`
+- `amount.doubleValue() * RATE` turns the `BigDecimal` into floating point, which loses precision
+- `BigDecimal.valueOf(fees.feeFor(...))` converts a computed double back to `BigDecimal`. The rule names this pattern specifically.
+
+Use `new BigDecimal(&quot;0.002&quot;)` for the rate and return `BigDecimal` from `feeFor`. Multiply in `BigDecimal` and call `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode your team uses.
+
+**3. R03: the whole request is logged, including personal data** (`PaymentService.java:24`)
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. Log an identifier instead, or nothing. The second log line (`payment.id()`) is fine.
+
+### Worth checking
+- **Time zone:** &quot;weekend&quot; is worked out in UTC. If customers or the business are in a different time zone, payments made late Friday or Sunday night local time will get the wrong fee. Confirm that UTC is what you want.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests with a fixed `Clock` for a weekday, Saturday and Sunday, plus a rounding case.
+
+R04 (controllers call services, not repositories) is fine: `PaymentController` only uses `PaymentService`.
+
+I haven&apos;t edited anything. If you want me to check against the exact diff, run `git diff main...feature/fees` and paste the output, or allow `git` in the sandbox.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 2</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">10 turns · $0.25 · 22:59:57 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t get a diff. `git` failed inside the sandbox: the xcrun shim couldn&apos;t write its cache, and a second shell command to look for another git binary was blocked by the permission mode. So I read the files in your working tree as they are now. Your branch has one commit, &quot;Add weekend fees&quot;, on top of `main`, and I&apos;m assuming it mainly touched `FeeCalculator.java` and the fee line in `PaymentService.java`. Run `git diff main...feature/fees` yourself to confirm which lines are new.
+
+I checked against your `REVIEW_RULES.md`. I didn&apos;t edit anything.
+
+## Must fix before pushing
+
+**1. The weekend check reads the system clock directly (R01, must)**: `src/main/java/demo/FeeCalculator.java:15`
+`Instant.now()` makes the weekend doubling impossible to test at a fixed time, and this is the kind of fee logic R01 was written for. `PaymentService` already has an injected `Clock`. Pass it into `FeeCalculator` through its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. That means `PaymentService.java:16` (`new FeeCalculator()`) needs to change too, ideally so the calculator is injected.
+
+**2. Fees are calculated with `double` (R02, must)**: `FeeCalculator.java:11,13,14`, `PaymentService.java:25`
+- `RATE` is a `double`, `feeFor` returns a `double`, and `amount.doubleValue() * RATE` loses precision.
+- `BigDecimal.valueOf(fees.feeFor(...))` turns that computed double back into a `BigDecimal`, which R02 names explicitly. The total then ends up with an arbitrary scale, e.g. `100.00 + 0.2` gives `100.200`, and other amounts can give long float-artifact decimals.
+- Fix: `RATE = new BigDecimal(&quot;0.002&quot;)`, return `BigDecimal`, and use `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` for weekends). Finish with `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding mode the team uses.
+
+## Also flagged (may not be from this branch)
+
+**3. The whole request object is logged (R03, must)**: `PaymentService.java:24`
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. That PII ends up in the shared logs. Log an identifier instead, or nothing until the payment id exists, as line 28 already does. If this line came from the initial commit and not your branch, it&apos;s still worth fixing or raising as a separate issue.
+
+## Worth deciding
+
+- **Time zone for &quot;weekend&quot;:** the check uses UTC. A payment made late Friday or early Monday in local time (e.g. CET) can be charged the wrong fee. Confirm which zone the business rule means. With an injected `Clock`, that&apos;s just the clock&apos;s zone.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests for a weekday and a weekend fee at fixed instants, including the rounding.
+
+R04 is fine: the controller only calls the service.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t get a diff. `git` failed inside the sandbox: the xcrun shim couldn&apos;t write its cache, and a second shell command to look for another git binary was blocked by the permission mode. So I read the files in your working tree as they are now. Your branch has one commit, &quot;Add weekend fees&quot;, on top of `main`, and I&apos;m assuming it mainly touched `FeeCalculator.java` and the fee line in `PaymentService.java`. Run `git diff main...feature/fees` yourself to confirm which lines are new.
+
+I checked against your `REVIEW_RULES.md`. I didn&apos;t edit anything.
+
+## Must fix before pushing
+
+**1. The weekend check reads the system clock directly (R01, must)**: `src/main/java/demo/FeeCalculator.java:15`
+`Instant.now()` makes the weekend doubling impossible to test at a fixed time, and this is the kind of fee logic R01 was written for. `PaymentService` already has an injected `Clock`. Pass it into `FeeCalculator` through its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. That means `PaymentService.java:16` (`new FeeCalculator()`) needs to change too, ideally so the calculator is injected.
+
+**2. Fees are calculated with `double` (R02, must)**: `FeeCalculator.java:11,13,14`, `PaymentService.java:25`
+- `RATE` is a `double`, `feeFor` returns a `double`, and `amount.doubleValue() * RATE` loses precision.
+- `BigDecimal.valueOf(fees.feeFor(...))` turns that computed double back into a `BigDecimal`, which R02 names explicitly. The total then ends up with an arbitrary scale, e.g. `100.00 + 0.2` gives `100.200`, and other amounts can give long float-artifact decimals.
+- Fix: `RATE = new BigDecimal(&quot;0.002&quot;)`, return `BigDecimal`, and use `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` for weekends). Finish with `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding mode the team uses.
+
+## Also flagged (may not be from this branch)
+
+**3. The whole request object is logged (R03, must)**: `PaymentService.java:24`
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. That PII ends up in the shared logs. Log an identifier instead, or nothing until the payment id exists, as line 28 already does. If this line came from the initial commit and not your branch, it&apos;s still worth fixing or raising as a separate issue.
+
+## Worth deciding
+
+- **Time zone for &quot;weekend&quot;:** the check uses UTC. A payment made late Friday or early Monday in local time (e.g. CET) can be charged the wrong fee. Confirm which zone the business rule means. With an injected `Clock`, that&apos;s just the clock&apos;s zone.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests for a weekday and a weekend fee at fixed instants, including the rounding.
+
+R04 is fine: the controller only calls the service.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t get a diff. `git` failed inside the sandbox: the xcrun shim couldn&apos;t write its cache, and a second shell command to look for another git binary was blocked by the permission mode. So I read the files in your working tree as they are now. Your branch has one commit, &quot;Add weekend fees&quot;, on top of `main`, and I&apos;m assuming it mainly touched `FeeCalculator.java` and the fee line in `PaymentService.java`. Run `git diff main...feature/fees` yourself to confirm which lines are new.
+
+I checked against your `REVIEW_RULES.md`. I didn&apos;t edit anything.
+
+## Must fix before pushing
+
+**1. The weekend check reads the system clock directly (R01, must)**: `src/main/java/demo/FeeCalculator.java:15`
+`Instant.now()` makes the weekend doubling impossible to test at a fixed time, and this is the kind of fee logic R01 was written for. `PaymentService` already has an injected `Clock`. Pass it into `FeeCalculator` through its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. That means `PaymentService.java:16` (`new FeeCalculator()`) needs to change too, ideally so the calculator is injected.
+
+**2. Fees are calculated with `double` (R02, must)**: `FeeCalculator.java:11,13,14`, `PaymentService.java:25`
+- `RATE` is a `double`, `feeFor` returns a `double`, and `amount.doubleValue() * RATE` loses precision.
+- `BigDecimal.valueOf(fees.feeFor(...))` turns that computed double back into a `BigDecimal`, which R02 names explicitly. The total then ends up with an arbitrary scale, e.g. `100.00 + 0.2` gives `100.200`, and other amounts can give long float-artifact decimals.
+- Fix: `RATE = new BigDecimal(&quot;0.002&quot;)`, return `BigDecimal`, and use `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` for weekends). Finish with `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding mode the team uses.
+
+## Also flagged (may not be from this branch)
+
+**3. The whole request object is logged (R03, must)**: `PaymentService.java:24`
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. That PII ends up in the shared logs. Log an identifier instead, or nothing until the payment id exists, as line 28 already does. If this line came from the initial commit and not your branch, it&apos;s still worth fixing or raising as a separate issue.
+
+## Worth deciding
+
+- **Time zone for &quot;weekend&quot;:** the check uses UTC. A payment made late Friday or early Monday in local time (e.g. CET) can be charged the wrong fee. Confirm which zone the business rule means. With an injected `Clock`, that&apos;s just the clock&apos;s zone.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests for a weekday and a weekend fee at fixed instants, including the rounding.
+
+R04 is fine: the controller only calls the service.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t get a diff. `git` failed inside the sandbox: the xcrun shim couldn&apos;t write its cache, and a second shell command to look for another git binary was blocked by the permission mode. So I read the files in your working tree as they are now. Your branch has one commit, &quot;Add weekend fees&quot;, on top of `main`, and I&apos;m assuming it mainly touched `FeeCalculator.java` and the fee line in `PaymentService.java`. Run `git diff main...feature/fees` yourself to confirm which lines are new.
+
+I checked against your `REVIEW_RULES.md`. I didn&apos;t edit anything.
+
+## Must fix before pushing
+
+**1. The weekend check reads the system clock directly (R01, must)**: `src/main/java/demo/FeeCalculator.java:15`
+`Instant.now()` makes the weekend doubling impossible to test at a fixed time, and this is the kind of fee logic R01 was written for. `PaymentService` already has an injected `Clock`. Pass it into `FeeCalculator` through its constructor and use `Instant.now(clock)` or `LocalDate.now(clock)`. That means `PaymentService.java:16` (`new FeeCalculator()`) needs to change too, ideally so the calculator is injected.
+
+**2. Fees are calculated with `double` (R02, must)**: `FeeCalculator.java:11,13,14`, `PaymentService.java:25`
+- `RATE` is a `double`, `feeFor` returns a `double`, and `amount.doubleValue() * RATE` loses precision.
+- `BigDecimal.valueOf(fees.feeFor(...))` turns that computed double back into a `BigDecimal`, which R02 names explicitly. The total then ends up with an arbitrary scale, e.g. `100.00 + 0.2` gives `100.200`, and other amounts can give long float-artifact decimals.
+- Fix: `RATE = new BigDecimal(&quot;0.002&quot;)`, return `BigDecimal`, and use `amount.multiply(RATE)` (and `.multiply(BigDecimal.valueOf(2))` for weekends). Finish with `.setScale(2, RoundingMode.HALF_EVEN)` or whatever rounding mode the team uses.
+
+## Also flagged (may not be from this branch)
+
+**3. The whole request object is logged (R03, must)**: `PaymentService.java:24`
+`PaymentRequest` is a record, so its `toString()` includes `debtorName`, `debtorIban` and `creditorIban`. That PII ends up in the shared logs. Log an identifier instead, or nothing until the payment id exists, as line 28 already does. If this line came from the initial commit and not your branch, it&apos;s still worth fixing or raising as a separate issue.
+
+## Worth deciding
+
+- **Time zone for &quot;weekend&quot;:** the check uses UTC. A payment made late Friday or early Monday in local time (e.g. CET) can be charged the wrong fee. Confirm which zone the business rule means. With an injected `Clock`, that&apos;s just the clock&apos;s zone.
+- **No tests:** there are no tests in the repo. Once the clock is injected, add tests for a weekday and a weekend fee at fixed instants, including the rounding.
+
+R04 is fine: the controller only calls the service.</pre>
+</div>
+</details></div>
+</div>
+<div class="run">
+<div class="run-head">
+<span class="run-title">Run 3</span>
+<span class="meter m-base" aria-hidden="true"><span style="width:100.0%"></span></span>
+<span class="num">100%</span>
+<span class="muted num">9 turns · $0.25 · 22:59:57 UTC</span>
+</div>
+
+<div class="graders"><details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">no-false-positive</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see the actual diff. `git` fails in this sandbox because the macOS `xcrun` shim can&apos;t write its cache, so I can&apos;t tell which lines `de84009 Add weekend fees` changed. Instead, I read all 4 files in `src/` and checked them against your team&apos;s `REVIEW_RULES.md`. The weekend-fee code is almost certainly yours; for anything else below, check whether it came from your commit.
+
+## Must fix
+
+**1. R01: inject the clock.** At `src/main/java/demo/FeeCalculator.java:15`:
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This calls `Instant.now()` directly, so you can&apos;t test the weekend fee at a fixed time. `PaymentService` already has a `Clock`. Inject it into `FeeCalculator` through its constructor, and have `PaymentService` pass its clock in rather than calling `new FeeCalculator()` (`PaymentService.java:16`). Also decide whether &quot;weekend&quot; really means UTC or the business&apos;s local time zone.
+
+**2. R02: money is BigDecimal.** In `FeeCalculator.java:11-19`:
+- `RATE` is a `double`, `feeFor` returns a `double`, and it does `amount.doubleValue() * RATE`. All of this should be `BigDecimal` with an explicit `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode the team uses.
+- `PaymentService.java:25` then calls `BigDecimal.valueOf(fees.feeFor(...))` on that computed double, which the rule names specifically. Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`.
+
+**3. R03: log ids, not customer data.** At `PaymentService.java:24`:
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` prints `debtorName`, `debtorIban` and `creditorIban`. Log nothing identifying here, or only non-PII fields. The log line at `:28` that prints `payment.id()` is fine. This line may already have been there in `50056df`; if so it isn&apos;t your change, but it&apos;s still a violation worth raising.
+
+## Fine
+- R04: `PaymentController` only calls `PaymentService`, not a repository.
+- `PaymentService` correctly uses `Instant.now(clock)` at `:26`.
+
+## Also missing
+There are no tests in the repo (`src/test` doesn&apos;t exist). The point of R01 is to make code like the weekend doubling testable, so a reviewer will probably ask for a test that checks a Saturday and a weekday using `Clock.fixed(...)`.
+
+I haven&apos;t changed anything. To confirm which of these lines your branch introduced, run `git diff main...feature/fees` in your own terminal.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r01-clock</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see the actual diff. `git` fails in this sandbox because the macOS `xcrun` shim can&apos;t write its cache, so I can&apos;t tell which lines `de84009 Add weekend fees` changed. Instead, I read all 4 files in `src/` and checked them against your team&apos;s `REVIEW_RULES.md`. The weekend-fee code is almost certainly yours; for anything else below, check whether it came from your commit.
+
+## Must fix
+
+**1. R01: inject the clock.** At `src/main/java/demo/FeeCalculator.java:15`:
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This calls `Instant.now()` directly, so you can&apos;t test the weekend fee at a fixed time. `PaymentService` already has a `Clock`. Inject it into `FeeCalculator` through its constructor, and have `PaymentService` pass its clock in rather than calling `new FeeCalculator()` (`PaymentService.java:16`). Also decide whether &quot;weekend&quot; really means UTC or the business&apos;s local time zone.
+
+**2. R02: money is BigDecimal.** In `FeeCalculator.java:11-19`:
+- `RATE` is a `double`, `feeFor` returns a `double`, and it does `amount.doubleValue() * RATE`. All of this should be `BigDecimal` with an explicit `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode the team uses.
+- `PaymentService.java:25` then calls `BigDecimal.valueOf(fees.feeFor(...))` on that computed double, which the rule names specifically. Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`.
+
+**3. R03: log ids, not customer data.** At `PaymentService.java:24`:
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` prints `debtorName`, `debtorIban` and `creditorIban`. Log nothing identifying here, or only non-PII fields. The log line at `:28` that prints `payment.id()` is fine. This line may already have been there in `50056df`; if so it isn&apos;t your change, but it&apos;s still a violation worth raising.
+
+## Fine
+- R04: `PaymentController` only calls `PaymentService`, not a repository.
+- `PaymentService` correctly uses `Instant.now(clock)` at `:26`.
+
+## Also missing
+There are no tests in the repo (`src/test` doesn&apos;t exist). The point of R01 is to make code like the weekend doubling testable, so a reviewer will probably ask for a test that checks a Saturday and a weekday using `Clock.fixed(...)`.
+
+I haven&apos;t changed anything. To confirm which of these lines your branch introduced, run `git diff main...feature/fees` in your own terminal.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r02-money</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see the actual diff. `git` fails in this sandbox because the macOS `xcrun` shim can&apos;t write its cache, so I can&apos;t tell which lines `de84009 Add weekend fees` changed. Instead, I read all 4 files in `src/` and checked them against your team&apos;s `REVIEW_RULES.md`. The weekend-fee code is almost certainly yours; for anything else below, check whether it came from your commit.
+
+## Must fix
+
+**1. R01: inject the clock.** At `src/main/java/demo/FeeCalculator.java:15`:
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This calls `Instant.now()` directly, so you can&apos;t test the weekend fee at a fixed time. `PaymentService` already has a `Clock`. Inject it into `FeeCalculator` through its constructor, and have `PaymentService` pass its clock in rather than calling `new FeeCalculator()` (`PaymentService.java:16`). Also decide whether &quot;weekend&quot; really means UTC or the business&apos;s local time zone.
+
+**2. R02: money is BigDecimal.** In `FeeCalculator.java:11-19`:
+- `RATE` is a `double`, `feeFor` returns a `double`, and it does `amount.doubleValue() * RATE`. All of this should be `BigDecimal` with an explicit `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode the team uses.
+- `PaymentService.java:25` then calls `BigDecimal.valueOf(fees.feeFor(...))` on that computed double, which the rule names specifically. Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`.
+
+**3. R03: log ids, not customer data.** At `PaymentService.java:24`:
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` prints `debtorName`, `debtorIban` and `creditorIban`. Log nothing identifying here, or only non-PII fields. The log line at `:28` that prints `payment.id()` is fine. This line may already have been there in `50056df`; if so it isn&apos;t your change, but it&apos;s still a violation worth raising.
+
+## Fine
+- R04: `PaymentController` only calls `PaymentService`, not a repository.
+- `PaymentService` correctly uses `Instant.now(clock)` at `:26`.
+
+## Also missing
+There are no tests in the repo (`src/test` doesn&apos;t exist). The point of R01 is to make code like the weekend doubling testable, so a reviewer will probably ask for a test that checks a Saturday and a weekday using `Clock.fixed(...)`.
+
+I haven&apos;t changed anything. To confirm which of these lines your branch introduced, run `git diff main...feature/fees` in your own terminal.</pre>
+</div>
+</details>
+<details class="grader">
+<summary><span class="chip chip-pass">✓ pass</span> <span class="grader-name">r03-pii</span>  </summary>
+<div class="grader-body">
+<p class="explanation">judge votes: PASS PASS PASS</p>
+<div class="kv"><span>Judge votes</span><span class="votes">✓ ✓ ✓</span></div><div class="kv"><span>Evidence (what the judge was shown; for an image, a description of what was sent)</span></div><pre class="evidence">I couldn&apos;t see the actual diff. `git` fails in this sandbox because the macOS `xcrun` shim can&apos;t write its cache, so I can&apos;t tell which lines `de84009 Add weekend fees` changed. Instead, I read all 4 files in `src/` and checked them against your team&apos;s `REVIEW_RULES.md`. The weekend-fee code is almost certainly yours; for anything else below, check whether it came from your commit.
+
+## Must fix
+
+**1. R01: inject the clock.** At `src/main/java/demo/FeeCalculator.java:15`:
+```java
+DayOfWeek today = Instant.now().atZone(ZoneOffset.UTC).getDayOfWeek();
+```
+This calls `Instant.now()` directly, so you can&apos;t test the weekend fee at a fixed time. `PaymentService` already has a `Clock`. Inject it into `FeeCalculator` through its constructor, and have `PaymentService` pass its clock in rather than calling `new FeeCalculator()` (`PaymentService.java:16`). Also decide whether &quot;weekend&quot; really means UTC or the business&apos;s local time zone.
+
+**2. R02: money is BigDecimal.** In `FeeCalculator.java:11-19`:
+- `RATE` is a `double`, `feeFor` returns a `double`, and it does `amount.doubleValue() * RATE`. All of this should be `BigDecimal` with an explicit `setScale(2, RoundingMode.HALF_EVEN)`, or whatever rounding mode the team uses.
+- `PaymentService.java:25` then calls `BigDecimal.valueOf(fees.feeFor(...))` on that computed double, which the rule names specifically. Once `feeFor` returns `BigDecimal`, this becomes `request.amount().add(fees.feeFor(request.amount()))`.
+
+**3. R03: log ids, not customer data.** At `PaymentService.java:24`:
+```java
+LOG.info(&quot;Creating payment for request {}&quot;, request);
+```
+`PaymentRequest` is a record, so its `toString()` prints `debtorName`, `debtorIban` and `creditorIban`. Log nothing identifying here, or only non-PII fields. The log line at `:28` that prints `payment.id()` is fine. This line may already have been there in `50056df`; if so it isn&apos;t your change, but it&apos;s still a violation worth raising.
+
+## Fine
+- R04: `PaymentController` only calls `PaymentService`, not a repository.
+- `PaymentService` correctly uses `Instant.now(clock)` at `:26`.
+
+## Also missing
+There are no tests in the repo (`src/test` doesn&apos;t exist). The point of R01 is to make code like the weekend doubling testable, so a reviewer will probably ask for a test that checks a Saturday and a weekday using `Clock.fixed(...)`.
+
+I haven&apos;t changed anything. To confirm which of these lines your branch introduced, run `git diff main...feature/fees` in your own terminal.</pre>
+</div>
+</details></div>
+</div>
+</section>
+</details>
+<details class="section" open>
+<summary>Prompt</summary>
+<div class="md"><p>I'm about to push my branch feature/fees. Check my changes first and tell me what I need to fix before pushing. Don't edit anything.</p>
+</div>
+</details>
+<details class="section" open>
+<summary>Graders — what "good" means for this case</summary>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">no-false-positive</span><span class="badge">llm</span></div>
+<div class="md"><p>The answer does NOT report the PaymentController change (the new positive-amount check) as violating a rule or as something that must be fixed. Mentioning it neutrally or as fine is OK. If the answer lists the controller as a required fix, fail.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">r01-clock</span><span class="badge">llm</span></div>
+<div class="md"><p>The answer flags the direct <code>Instant.now()</code> call in FeeCalculator (current time not taken from an injected Clock / not testable) as a problem to fix.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">r02-money</span><span class="badge">llm</span></div>
+<div class="md"><p>The answer flags that FeeCalculator computes money with <code>double</code> (RATE, feeFor's return type, amount.doubleValue()) and says it should be BigDecimal with explicit rounding.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">r03-pii</span><span class="badge">llm</span></div>
+<div class="md"><p>The answer flags the new log line in PaymentService that logs the whole PaymentRequest, explaining that it writes customer data (IBANs and/or names) to the logs, and suggests logging only an id.</p>
+</div>
+</div>
+<div class="grader-def">
+<div class="grader-def-head"><span class="grader-name">used-rules</span><span class="badge">regex</span></div>
+<div class="config"><div class="kv"><span>target</span><code>&quot;trace&quot;</code></div><div class="kv"><span>pattern</span><code>&quot;reviewer-memory:check|REVIEW_RULES&quot;</code></div><div class="kv"><span>flags</span><code>&quot;&quot;</code></div><div class="kv"><span>match</span><code>&quot;contains&quot;</code></div><div class="kv"><span>arm</span><code>&quot;with-only&quot;</code></div></div>
+</div>
+</details>
+</article>
+<footer>Generated by <code>claude plugin eval</code> · schema v1 · scores are not comparable across different suites</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  var bar=document.querySelector('.toolbar');
+  if(!bar)return;
+  bar.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest('button');
+    if(!b)return;
+    var open=b.dataset.act==='expand';
+    document.querySelectorAll('details.section, details.grader').forEach(function(d){d.open=open});
+  });
+});
+// Collapsed details vanish from print/PDF; these pages are share artifacts.
+window.addEventListener('beforeprint',function(){
+  document.querySelectorAll('details').forEach(function(d){
+    if(!d.open){d.dataset.printOpened='1';d.open=true}
+  });
+});
+window.addEventListener('afterprint',function(){
+  document.querySelectorAll('details[data-print-opened]').forEach(function(d){
+    d.open=false;delete d.dataset.printOpened;
+  });
+});
+</script>
+</body>
+</html>
